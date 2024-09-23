@@ -72,9 +72,6 @@ export default function setup() {
           );
           if (!outcome) process.exitCode = 1;
         }
-        else {
-          console.log("hey there")
-        }
       }
       //end command logic inside action handler
     );

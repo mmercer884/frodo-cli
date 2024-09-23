@@ -1,6 +1,7 @@
 import { frodo, FrodoError, state } from '@rockcarver/frodo-lib'
 import { FullExportOptions } from '@rockcarver/frodo-lib/types/ops/ConfigOps';
 import { printError } from '../utils/Console';
+import * as deepDiff from 'deep-diff'
 import {
   getFullExportConfigFromDirectory,
 } from '../utils/Config';
@@ -26,7 +27,7 @@ export async function compareExportToDirectory(
 ): Promise<boolean> {
   try {
     const collectErrors: Error[] = [];
-    console.log("compareing")
+    console.log("comparing")
 
     //export the full configuration
     const exportData = await exportFullConfiguration(options, collectErrors);
@@ -42,7 +43,12 @@ export async function compareExportToDirectory(
     //import everything from separate files in a directory
     // Todo: state.getDirectory changed over to a parameter passed in 
     const data = await getFullExportConfigFromDirectory(dir);
-    console.log(data)
+    let filename2 = 'all2.config.json';
+    saveJsonToFile(data, getFilePath(filename2, true), includeMeta)
+    const diff = deepDiff.diff(exportData, data)
+    console.log("diffing")
+    let diffname = 'diff.config.json';
+    saveJsonToFile(diff, getFilePath(diffname, true), includeMeta)
     return true;
   } catch (error) {
     printError(error);

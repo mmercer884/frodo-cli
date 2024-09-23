@@ -18,6 +18,7 @@ import journey from './cli/journey/journey';
 import log from './cli/log/log';
 import mapping from './cli/mapping/mapping';
 import oauth from './cli/oauth/oauth';
+import promote from './cli/promote/promote'
 import realm from './cli/realm/realm';
 import saml from './cli/saml/saml';
 import script from './cli/script/script';
@@ -71,6 +72,7 @@ const { initTokenCache } = frodo.cache;
     await program.addCommand(log());
     program.addCommand(mapping());
     program.addCommand(oauth());
+    program.addCommand(promote());
     program.addCommand(realm());
     program.addCommand(saml());
     program.addCommand(script());

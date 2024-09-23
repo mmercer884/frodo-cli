@@ -1,17 +1,14 @@
-import { FrodoStubCommand } from '../FrodoCommand';
+import { FrodoCommand } from '../FrodoCommand';
 import { Option } from 'commander';
-
-import {
-  exportEverythingToFile,
-} from '../../ops/ConfigOps'
 
 import { getTokens } from '../../ops/AuthenticateOps';
 import { verboseMessage } from '../../utils/Console.js';
+import { compareExportToDirectory } from '../../ops/PromoteOps';
 
 const deploymentTypes = ['cloud'];
 
 export default function setup() {
-  const program = new FrodoStubCommand('frodo promote')
+  const program = new FrodoCommand('promote')
 
   program
     .description(
@@ -60,7 +57,7 @@ export default function setup() {
         );
         if (await getTokens(false, true, deploymentTypes)) {
           verboseMessage('Comparing export...');
-          const outcome = await exportEverythingToFile(
+          const outcome = await compareExportToDirectory(
             options.file,
             false,
             {
@@ -70,9 +67,13 @@ export default function setup() {
               includeDefault: options.default,
               includeActiveValues: true,
               target: options.target,
-            }
+            },
+            "/home/trivir/Frodo/golden1-git/identity-cloud-config"
           );
           if (!outcome) process.exitCode = 1;
+        }
+        else {
+          console.log("hey there")
         }
       }
       //end command logic inside action handler

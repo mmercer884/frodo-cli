@@ -7,6 +7,14 @@ import {
 const { saveJsonToFile, saveTextToFile, getFilePath, getWorkingDirectory } = frodo.utils;
 const { exportFullConfiguration } = frodo.config;
 import { exportItem } from "./ConfigOps"
+import { importFirstThemeFromFile } from "./ThemeOps"
+import { importFirstServiceFromFile } from './ServiceOps.js';
+import { importJourneyFromFile } from './JourneyOps';
+import { importScriptsFromFile } from './ScriptOps';
+import { importApplicationsFromFile } from './ApplicationOps';
+import { importAuthenticationSettingsFromFile } from './AuthenticationSettingsOps';
+import { importPolicySetsFromFile } from './PolicySetOps';
+import { importResourceTypesFromFile } from './ResourceTypeOps';
 
 import deepDiff from 'deep-diff';
 import * as fs from "fs"
@@ -178,7 +186,7 @@ function compareDirectories(dir1, dir2) {
           const hash2 = hashFile(counterpart);
           if (hash1 !== hash2) {
               changed.push(`'${relativePath}'`);
-              changeFile(relativePath)
+              changeFile(relativePath, dir2)
           }
       } else {
           deleted.push(`'${relativePath}'`);
@@ -197,14 +205,13 @@ function compareDirectories(dir1, dir2) {
 
       if (!fs.existsSync(counterpart)) {
           added.push(`'${relativePath}'`);
-          addFile(relativePath)
+          addFile(relativePath, dir2)
       }
   });
 }
 
 async function emptyDirectory(dirPath: string): Promise<void> {
   const absoluteDirPath = path.resolve(dirPath)
-
   try {
     // Check if the directory exists
     await promises.access(absoluteDirPath);
@@ -236,113 +243,176 @@ async function emptyDirectory(dirPath: string): Promise<void> {
   }
 }
 
-function changeFile(path: string) {
+async function changeFile(path: string, dir: string) {
   logmessages.push("file changed:")
-  console.log("file Changed: ")
-  deleteFile(path, true)
-  logmessages.push("then")
-  console.log("then")
-  addFile(path)
+  console.log("File Changed: ")
+  await addFile(path, dir)
 }
 
-function addFile(path: string) {
+async function addFile(path: string, dir: string) {
   let type: string = path.substring(path.substring(0, path.lastIndexOf('/')).lastIndexOf('/') + 1, path.lastIndexOf('/'))
-
+  let importFilePath = dir + '/' + path;
+  let global = (path.substring(0, path.indexOf('/')) === 'global')
+  let inRealm = (path.substring(0, path.indexOf('/')) === 'realm')
+  let realm: string = null
+  if(inRealm) {
+    realm = path.substring(path.indexOf('/') + 1, path.indexOf('/', path.indexOf('/') + 1))
+    console.log(`realm = ${realm}`)
+    state.setRealm(realm)
+  }
+  
   switch (type) {
     case 'application': {
-      logmessages.push(`add application ${path}`)
-      console.log(`add application ${path}\n`)
+      // const outcome = await importApplicationsFromFile(importFilePath, {
+      //   deps: true,
+      // });
+      logmessages.push(`add application ${importFilePath}`)
+      console.log(`add application ${importFilePath}\n`)
+      //logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'authentication': {
-      logmessages.push(`add authentication ${path}`)
-      console.log(`add authentication ${path}\n`)
+      // const outcome = await importAuthenticationSettingsFromFile(importFilePath);
+      logmessages.push(`add authentication ${importFilePath}`)
+      console.log(`add authentication ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'journey': {
-      logmessages.push(`add journey ${path}`)
-      console.log(`add journey ${path}\n`)
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      let script = importData["trees"]
+      let journeyId = Object.keys(script)[0]
+      verboseMessage(`journey Id: ${journeyId}`)
+      // const outcome = await importJourneyFromFile(
+      //   journeyId,
+      //   importFilePath,
+      //   {
+      //     reUuid: false,
+      //     deps: true,
+      //   }
+      // );
+      logmessages.push(`add journey ${importFilePath}`)
+      console.log(`add journey ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'managedApplication': {
-      logmessages.push(`add managedApplication ${path}`)
-      console.log(`add managedApplication ${path}\n`)
+      logmessages.push(`add managedApplication ${importFilePath}`)
+      console.log(`add managedApplication ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     case 'policyset': {
-      logmessages.push(`add policyset ${path}`)
-      console.log(`add policyset ${path}\n`)
+      // const outcome = await importPolicySetsFromFile(importFilePath, {
+      //   deps: true,
+      //   prereqs: true,
+      // });
+      logmessages.push(`add policyset ${importFilePath}`)
+      console.log(`add policyset ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'resourcetype': {
-      logmessages.push(`add resourcetype ${path}`)
-      console.log(`add resourcetype ${path}\n`)
+      //const outcome = await importResourceTypesFromFile(importFilePath);
+      logmessages.push(`add resourcetype ${importFilePath}`)
+      console.log(`add resourcetype ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'script': {
-      logmessages.push(`add script ${path}`)
-      console.log(`add script ${path}\n`)
+      //read out json file to pull the script.uuid.name and ._id 
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      let scriptKey = Object.keys(importData)[0]
+      let script = importData[scriptKey]
+      let uuid = Object.keys(script)[0]
+      let nestedScript = script[uuid]
+      verboseMessage(`script name: ${nestedScript.name}`)
+      verboseMessage(`script id: ${nestedScript._id}`)
+      // const outcome = await importScriptsFromFile(
+      //   nestedScript._id,
+      //   nestedScript.name,
+      //   importFilePath,
+      //   {
+      //     deps: true,
+      //     reUuid: false,
+      //     includeDefault: false,
+      //   }
+      // );
+      logmessages.push(`add script ${importFilePath}`)
+      console.log(`add script ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'service': {
-      logmessages.push(`add service ${path}`)
-      console.log(`add service ${path}\n`)
+      // const outcome = await importFirstServiceFromFile(importFilePath, {
+      //   clean: true,
+      //   global: global,
+      //   realm: inRealm,
+      // });
+      // if (!outcome) process.exitCode = 1;
+      logmessages.push(`add service ${importFilePath}`)
+      console.log(`add service ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'theme': {
-      logmessages.push(`add theme ${path}`)
-      console.log(`add theme ${path}\n`)
+      //await importFirstThemeFromFile(importFileimportFilePath)
+      logmessages.push(`add theme ${importFilePath}`)
+      console.log(`add theme ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'emailTemplate': {
-      logmessages.push(`add emailTemplate ${path}`)
-      console.log(`add emailTemplate ${path}\n`)
+      logmessages.push(`add emailTemplate ${importFilePath}`)
+      console.log(`add emailTemplate ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     case 'idm': {
-      logmessages.push(`add idm ${path}`)
-      console.log(`add idm ${path}\n`)
+      logmessages.push(`add idm ${importFilePath}`)
+      console.log(`add idm ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     case 'secret': {
-      logmessages.push(`add secret ${path}`)
-      console.log(`add secret ${path}\n`)
+      logmessages.push(`add secret ${importFilePath}`)
+      console.log(`add secret ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     case 'sync': {
-      logmessages.push(`add sync ${path}`)
-      console.log(`add sync ${path}\n`)
+      logmessages.push(`add sync ${importFilePath}`)
+      console.log(`add sync ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     case 'variable': {
-      logmessages.push(`add variable ${path}`)
-      console.log(`add variable ${path}\n`)
+      logmessages.push(`add variable ${importFilePath}`)
+      console.log(`add variable ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
     default: {
-      logmessages.push(`add ${path}`)
-      console.log(`add ${path}\n`)
+      logmessages.push(`add ${importFilePath}`)
+      console.log(`add ${importFilePath}\n`)
       logmessages.push(" ")
       break;
     }
   }
 }
 
-function deleteFile(path: string, change: boolean = false) {
+async function deleteFile(path: string, change: boolean = false) {
+  console.log("File Deleted: ")
   let type: string = path.substring(path.substring(0, path.lastIndexOf('/')).lastIndexOf('/') + 1, path.lastIndexOf('/'))
 
   switch (type) {

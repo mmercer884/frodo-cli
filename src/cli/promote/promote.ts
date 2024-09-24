@@ -20,7 +20,6 @@ export default function setup() {
       `Usage Examples:\n` +
         `  No good help at the moment.\n`
     )
-    .addOption(new Option('-f, --file <file>', 'Name of the export file.'))
     .addOption(
       new Option(
         '-N, --no-metadata',
@@ -57,9 +56,9 @@ export default function setup() {
         );
         if (await getTokens(false, true, deploymentTypes)) {
           verboseMessage('Comparing export...');
+          console.log("comparing")
+          console.log()
           const outcome = await compareExportToDirectory(
-            options.file,
-            false,
             {
               useStringArrays: false,
               noDecode: false,
@@ -68,8 +67,9 @@ export default function setup() {
               includeActiveValues: true,
               target: options.target,
             },
-            "/home/trivir/Frodo/golden1-git/identity-cloud-config"
+            "/home/trivir/Frodo/golden1-git/identity-cloud-config",
           );
+          console.log("done")
           if (!outcome) process.exitCode = 1;
         }
       }

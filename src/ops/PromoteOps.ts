@@ -28,6 +28,7 @@ import { importSocialIdentityProviderFromFile } from './IdpOps';
 import { importPolicyFromFile } from './PolicyOps';
 import { importAgentFromFile } from './AgentOps';
 import { importSaml2ProviderFromFile } from './Saml2Ops';
+import { importOAuth2ClientFromFile } from './OAuth2ClientOps';
 
 const exportDir = getWorkingDirectory(true) + "/frodo-export"
 
@@ -275,9 +276,18 @@ async function addFile(path: string, dir: string) {
   
   switch (type) {
     case 'application': {
-      // const outcome = await importApplicationsFromFile(importFilePath, {
-      //   deps: true,
-      // });
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      let application = importData[Object.keys(importData)[0]]
+      let nestedApplication = application[Object.keys(application)[0]]
+      verboseMessage(`application id: ${nestedApplication._id}`)
+      // const outcome = await importOAuth2ClientFromFile(
+      //   nestedApplication._id,
+      //   importFilePath,
+      //   {
+      //     deps: true,
+      //   }
+      // );
       logmessages.push(`add application ${importFilePath}`)
       console.log(`add application ${importFilePath}\n`)
       //logmessages.push(`outcome: ${outcome}`)
@@ -313,8 +323,12 @@ async function addFile(path: string, dir: string) {
       break;
     }
     case 'managedApplication': {
+      // const outcome = await importApplicationsFromFile(importFilePath, {
+      //   deps: true,
+      // });
       logmessages.push(`add managedApplication ${importFilePath}`)
       console.log(`add managedApplication ${importFilePath}\n`)
+      //logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }

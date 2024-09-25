@@ -1,9 +1,7 @@
 import { frodo, FrodoError, state } from '@rockcarver/frodo-lib'
 import { FullExportInterface, FullExportOptions } from '@rockcarver/frodo-lib/types/ops/ConfigOps';
 import { printError, verboseMessage } from '../utils/Console';
-import {
-  getFullExportConfigFromDirectory,
-} from '../utils/Config';
+import { getFullExportConfigFromDirectory } from '../utils/Config';
 const { saveJsonToFile, saveTextToFile, getFilePath, getWorkingDirectory } = frodo.utils;
 const { exportFullConfiguration } = frodo.config;
 import { exportItem } from "./ConfigOps"
@@ -15,12 +13,21 @@ import { importApplicationsFromFile } from './ApplicationOps';
 import { importAuthenticationSettingsFromFile } from './AuthenticationSettingsOps';
 import { importPolicySetsFromFile } from './PolicySetOps';
 import { importResourceTypesFromFile } from './ResourceTypeOps';
+import { importSecretFromFile } from './cloud/SecretsOps';
+import { importVariableFromFile } from './cloud/VariablesOps';
+import { importEmailTemplateFromFile } from './EmailTemplateOps';
 
 import deepDiff from 'deep-diff';
 import * as fs from "fs"
 import { promises } from "fs"
 import * as path from "path"
 import * as crypto from "crypto"
+import { importConfigEntityFromFile } from './IdmOps';
+import { importMappingFromFile } from './MappingOps';
+import { importSocialIdentityProviderFromFile } from './IdpOps';
+import { importPolicyFromFile } from './PolicyOps';
+import { importAgentFromFile } from './AgentOps';
+import { importSaml2ProviderFromFile } from './Saml2Ops';
 
 const exportDir = getWorkingDirectory(true) + "/frodo-export"
 
@@ -250,7 +257,12 @@ async function changeFile(path: string, dir: string) {
 }
 
 async function addFile(path: string, dir: string) {
-  let type: string = path.substring(path.substring(0, path.lastIndexOf('/')).lastIndexOf('/') + 1, path.lastIndexOf('/'))
+  let type: string
+  if (path.includes("idm")){
+    type = "idm"
+  } else{
+    type = path.substring(path.substring(0, path.lastIndexOf('/')).lastIndexOf('/') + 1, path.lastIndexOf('/'))
+  }
   let importFilePath = dir + '/' + path;
   let global = (path.substring(0, path.indexOf('/')) === 'global')
   let inRealm = (path.substring(0, path.indexOf('/')) === 'realm')
@@ -373,38 +385,169 @@ async function addFile(path: string, dir: string) {
       break;
     }
     case 'emailTemplate': {
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      let emailTemplate = JSON.parse(data)[Object.keys(JSON.parse(data))[0]]
+      let uuid = Object.keys(emailTemplate)[0]
+      let nestedEmailTemplate = emailTemplate[uuid]
+      verboseMessage(`Email Template Id: ${nestedEmailTemplate}`)
+
+      // const outcome = await importEmailTemplateFromFile(
+      //   nestedEmailTemplate._id,
+      //   importFilePath,
+      //   false
+      // );
       logmessages.push(`add emailTemplate ${importFilePath}`)
       console.log(`add emailTemplate ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'idm': {
+      //const outcome = await importConfigEntityFromFile(importFilePath);
       logmessages.push(`add idm ${importFilePath}`)
       console.log(`add idm ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'secret': {
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      let secretKey = Object.keys(importData)[0]
+      let secret = importData[secretKey]
+      let uuid = Object.keys(secret)[0]
+      let nestedSecret = secret[uuid]
+
+      verboseMessage(`Importing secret ${nestedSecret._id}...`);
+      // const outcome = await importSecretFromFile(
+      //   nestedSecret._id,
+      //   importFilePath,
+      //   false,
+      //   null
+      // );
       logmessages.push(`add secret ${importFilePath}`)
       console.log(`add secret ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'sync': {
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      verboseMessage(`sync Id: ${importData._id}`)
+      // const outcome = await importMappingFromFile(
+      //   importData._id,
+      //   importFilePath,
+      //   {
+      //     true,
+      //   }
+      // );
       logmessages.push(`add sync ${importFilePath}`)
       console.log(`add sync ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     case 'variable': {
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      let variableKey = Object.keys(importData)[0]
+      let variable = importData[variableKey]
+      let uuid = Object.keys(variable)[0]
+      let nestedSecret = variable[uuid]
+
+      verboseMessage(`Importing variable ${variable._id}...`);
+      // const outcome = await importVariableFromFile(
+      //   variable._id,
+      //   importFilePath
+      // );
       logmessages.push(`add variable ${importFilePath}`)
       console.log(`add variable ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(" ")
+      break;
+    }
+    case 'saml': {
+      //Todo find the entity ID from the saml file
+      // const outcome = await importSaml2ProviderFromFile(
+      //   entityId,
+      //   importFilePath,
+      //   { deps: true }
+      // )
+      logmessages.push(`add saml ${importFilePath}`)
+      console.log(`add saml ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(" ")
+      break;
+    }
+    case 'mapping': {
+      const data = fs.readFileSync(importFilePath, 'utf8');
+      const importData = JSON.parse(data);
+      verboseMessage(`mapping Id: ${importData._id}`)
+      // const outcome = await importMappingFromFile(
+      //   importData._id,
+      //   importFilePath,
+      //   {
+      //     true,
+      //   }
+      // );
+      logmessages.push(`add mapping ${importFilePath}`)
+      console.log(`add mapping ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(" ")
+      break;
+    }
+    case 'agents': {
+      //Todo: find agentId from file
+      // const outcome = await importAgentFromFile(
+      //   agentId,
+      //   importFilePath
+      // )
+      logmessages.push(`add agents ${importFilePath}`)
+      console.log(`add agents ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(" ")
+      break;
+    }
+    case 'idp': {
+      //need to get idp id somehow
+      // verboseMessage(
+      //   `Importing provider "${
+      //     options.idpId
+      //   }" into realm "${state.getRealm()}"...`
+      // );
+      // const outcome = await importSocialIdentityProviderFromFile(
+      //   options.idpId,
+      //   importFilePath,
+      //   {
+      //     deps: true,
+      //   }
+      // );
+      //TODO: think about adding circle of trust ops
+      logmessages.push(`add idp ${importFilePath}`)
+      console.log(`add idp ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(" ")
+      break;
+    }
+    case 'policy': {
+      // const outcome = await importPolicyFromFile(
+      //   options.policyId,
+      //   importFilePath,
+      //   { 
+      //     deps: true,
+      //     prereqs: false
+      //   }
+      // )
+      logmessages.push(`add policy ${importFilePath}`)
+      console.log(`add policy ${importFilePath}\n`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(" ")
       break;
     }
     default: {
-      logmessages.push(`add ${importFilePath}`)
-      console.log(`add ${importFilePath}\n`)
+      logmessages.push(`missed add for ${importFilePath} with type ${type}`)
+      console.log(`missed add for ${importFilePath} with type ${type}\n`)
       logmessages.push(" ")
       break;
     }

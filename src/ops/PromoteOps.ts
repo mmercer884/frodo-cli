@@ -183,6 +183,19 @@ export async function compareExportToDirectory(
   return false;
 }
 
+export async function effectDifferences(compObj: CompareObj, masterDir: string, exportDir: string) {
+  for (const add of compObj.added) {
+    await addFile(add, masterDir);
+  }
+  for (const change of compObj.changed) {
+    await changeFile(change, masterDir);
+  }
+  for (const del of compObj.deleted) {
+    await deleteFile(del, exportDir);
+  }
+  verboseMessage(`finished effect differences`)
+}
+
 /**
  * checks to see if there were any changes to esv's to see if an environment refresh is necessary
  * @param files the compare object we need to filter through to see if any variables or secrets were changed

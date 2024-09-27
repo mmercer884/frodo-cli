@@ -3,6 +3,7 @@ import { Option } from 'commander';
 import { getTokens } from '../../ops/AuthenticateOps';
 import { deleteOauth2ClientById } from '../../ops/OAuth2ClientOps';
 import { FrodoCommand } from '../FrodoCommand';
+import { deleteOauth2ClientById } from '../../ops/OAuth2ClientOps';
 
 export default function setup() {
   const program = new FrodoCommand('frodo oauth client delete');

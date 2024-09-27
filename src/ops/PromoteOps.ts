@@ -337,7 +337,6 @@ async function emptyDirectory(dirPath: string): Promise<void> {
   }
   const files = await promises.readdir(absoluteDirPath);
   verboseMessage('cleaning: ');
-  verboseMessage(files);
 
   for (const file of files) {
     const filePath = path.join(absoluteDirPath, file);

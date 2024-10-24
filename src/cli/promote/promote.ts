@@ -5,7 +5,7 @@ import { compareExportToDirectory } from '../../ops/PromoteOps';
 import { verboseMessage } from '../../utils/Console.js';
 import { FrodoCommand } from '../FrodoCommand';
 
-const deploymentTypes = ['cloud'];
+const deploymentTypes = ['cloud', 'forgeops'];
 
 export default function setup() {
   const program = new FrodoCommand('promote');
@@ -27,7 +27,7 @@ export default function setup() {
     )
     .addOption(
       new Option(
-        '-c, --master-dir <directory>',
+        '-M, --master-dir <directory>',
         'The directory where the master configurations is located.'
       )
     )
@@ -71,22 +71,15 @@ export default function setup() {
           options.frodoExportDir
         ) {
           verboseMessage('Comparing export...');
-          console.log('comparing');
-          console.log();
           const outcome = await compareExportToDirectory(
-            {
-              useStringArrays: false,
-              noDecode: false,
-              coords: options.coords,
-              includeDefault: options.default,
-              includeActiveValues: true,
-              target: options.target,
-            },
+            options.frodoExportDir,
             options.masterDir,
-            options.frodoExportDir
           );
           console.log('done');
-          if (!outcome) process.exitCode = 1;
+          if (!outcome) {
+            process.exitCode = 1;
+            console.error("There was an error")
+          }
         } else {
           console.error('need to designate a master dir and export dir');
         }

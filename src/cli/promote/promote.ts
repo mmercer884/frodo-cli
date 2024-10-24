@@ -5,7 +5,7 @@ import { compareExportToDirectory } from '../../ops/PromoteOps';
 import { verboseMessage } from '../../utils/Console.js';
 import { FrodoCommand } from '../FrodoCommand';
 
-const deploymentTypes = ['cloud'];
+const deploymentTypes = ['cloud', 'forgeops'];
 
 export default function setup() {
   const program = new FrodoCommand('promote');
@@ -21,13 +21,13 @@ export default function setup() {
     )
     .addOption(
       new Option(
-        '-e, --frodo-export-dir <directory>',
+        '-E, --frodo-export-dir <directory>',
         'The directory where the frodo export is located.'
       )
     )
     .addOption(
       new Option(
-        '-c, --master-dir <directory>',
+        '-M, --master-dir <directory>',
         'The directory where the master configurations is located.'
       )
     )
@@ -74,16 +74,8 @@ export default function setup() {
           console.log('comparing');
           console.log();
           const outcome = await compareExportToDirectory(
-            {
-              useStringArrays: false,
-              noDecode: false,
-              coords: options.coords,
-              includeDefault: options.default,
-              includeActiveValues: true,
-              target: options.target,
-            },
             options.masterDir,
-            options.frodoExportDir
+            options.frodoExportDir,
           );
           console.log('done');
           if (!outcome) process.exitCode = 1;

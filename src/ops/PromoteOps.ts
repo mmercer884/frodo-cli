@@ -58,6 +58,8 @@ const added = [];
 const logmessages = [];
 
 export async function compareExportToDirectory(
+  masterDir: string,
+  exportDir: string,
   options: FullExportOptions = {
     useStringArrays: true,
     noDecode: false,
@@ -66,21 +68,19 @@ export async function compareExportToDirectory(
     includeActiveValues: false,
     target: '',
   },
-  dir1: string,
-  dir2: string
 ): Promise<boolean> {
   try {
     var options = options;
-    verboseMessage(`Master dir: ${dir1}`);
-    verboseMessage(`Export dir: ${dir2}`);
+    verboseMessage(`Master dir: ${masterDir}`);
+    verboseMessage(`Export dir: ${exportDir}`);
     // var direct = dir
     //export the full configuration
 
-    verboseMessage("exporting")
-    emptyDirectory(exportDir)
-    if(!await exportEverythingToFiles(options)){
-      throw new FrodoError("Errors occured while exporting files")
-    }
+    // verboseMessage("exporting")
+    // emptyDirectory(exportDir)
+    // if(!await exportEverythingToFiles(options)){
+    //   throw new FrodoError("Errors occured while exporting files")
+    // }
 
     // let fileName = 'all.config.json';
     // verboseMessage("importing export")
@@ -103,29 +103,29 @@ export async function compareExportToDirectory(
 
     verboseMessage('fileDiffing');
     const fileDiffname = 'fileDiff.config.json';
-    await compareDirectoriesAndChange(exportDir, dir1);
+    await compareDirectoriesAndChange(exportDir, masterDir);
     const compareObj: CompareObj = { added, changed, deleted };
     saveJsonToFile(compareObj, getFilePath('a1' + fileDiffname, true));
     saveJsonToFile(logmessages, getFilePath('a2' + fileDiffname, true));
 
-    while (added.length > 0) {
-      added.pop()
-    }
-    while (changed.length > 0) {
-      changed.pop()
-    }
-    while (deleted.length > 0) {
-      deleted.pop()
-    }
-    emptyDirectory(exportDir)
-    if(!await exportEverythingToFiles(options)){
-      throw new FrodoError("Errors occured while exporting files")
-    }
+    // while (added.length > 0) {
+    //   added.pop()
+    // }
+    // while (changed.length > 0) {
+    //   changed.pop()
+    // }
+    // while (deleted.length > 0) {
+    //   deleted.pop()
+    // }
+    // emptyDirectory(exportDir)
+    // if(!await exportEverythingToFiles(options)){
+    //   throw new FrodoError("Errors occured while exporting files")
+    // }
 
-    verboseMessage("fileDiffing")
-    await compareDirectories(exportDir, dir1)
-    let compareObj2: CompareObj = {added, changed, deleted}
-    saveJsonToFile(compareObj, getFilePath("b1" + fileDiffname, true))
+    // verboseMessage("fileDiffing")
+    // await compareDirectories(exportDir, dir1)
+    // let compareObj2: CompareObj = {added, changed, deleted}
+    // saveJsonToFile(compareObj, getFilePath("b1" + fileDiffname, true))
 
     return true;
   } catch (error) {
@@ -208,7 +208,7 @@ function hashFile(filePath) {
 }
 
 // Function to compare two directories
-async function compareDirectoriesAndChange(dir1, dir2) {
+async function compareDirectoriesAndChange(dir1, dir2): Promise<void> {
   // Walk through dir1
   const walkDir = (dir, callback) => {
     fs.readdirSync(dir).forEach((file) => {
@@ -223,7 +223,7 @@ async function compareDirectoriesAndChange(dir1, dir2) {
   };
 
   // First directory traversal
-  walkDir(dir1, async (file: string) => {
+  walkDir(dir1, (file: string) => {
     const relativePath = path.relative(dir1, file);
     const counterpart = path.join(dir2, relativePath);
 
@@ -238,17 +238,19 @@ async function compareDirectoriesAndChange(dir1, dir2) {
       const hash1 = hashFile(file);
       const hash2 = hashFile(counterpart);
       if (hash1 !== hash2) {
-        changed.push(`'${relativePath}'`);
-        await changeFile(relativePath, dir2);
+        if (!relativePath.includes("theme")) {
+          changed.push(`'${relativePath}'`);
+          changeFile(relativePath, dir2);
+        }
       }
     } else {
       deleted.push(`'${relativePath}'`);
-      await deleteFile(relativePath, dir1);
+      deleteFile(relativePath, dir1);
     }
   });
 
   // Second directory traversal to find added files
-  walkDir(dir2, async (file: string) => {
+  walkDir(dir2, (file: string) => {
     const relativePath = path.relative(dir2, file);
     const counterpart = path.join(dir1, relativePath);
 
@@ -261,7 +263,7 @@ async function compareDirectoriesAndChange(dir1, dir2) {
 
     if (!fs.existsSync(counterpart)) {
       added.push(`'${relativePath}'`);
-      await addFile(relativePath, dir2);
+      addFile(relativePath, dir2);
     }
   });
 }
@@ -669,9 +671,9 @@ async function deleteFile(path: string, dir: string) {
       verboseMessage(
         `Deleting journey ${journeyId} in realm "${state.getRealm()}"...`
       );
-      // const outcome = await deleteJourney(journeyId, {deep: true, verbose: false, progress: false});
+      const outcome = await deleteJourney(journeyId, {deep: true, verbose: false, progress: false});
       logmessages.push(`delete journey ${deleteFilePath}`);
-      // logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(`outcome: ${outcome}`)
       logmessages.push(' ');
       verboseMessage(`delete journey ${deleteFilePath}\n`);
       break;

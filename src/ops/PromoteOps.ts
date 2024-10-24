@@ -7,8 +7,6 @@ import { deleteSaml2Provider } from '@rockcarver/frodo-lib/types/ops/Saml2Ops';
 import * as crypto from 'crypto';
 import deepDiff from 'deep-diff';
 import * as fs from 'fs';
-
-const util = require('util');
 import { promises } from 'fs';
 import * as path from 'path';
 
@@ -25,7 +23,7 @@ import {
   deleteVariableById,
   importVariableFromFile,
 } from './cloud/VariablesOps';
-import { exportEverythingToFiles, exportItem } from './ConfigOps';
+import { exportItem } from './ConfigOps';
 import { importEmailTemplateFromFile } from './EmailTemplateOps';
 import { importConfigEntityFromFile } from './IdmOps';
 import { importSocialIdentityProviderFromFile } from './IdpOps';
@@ -52,45 +50,41 @@ const {
 } = frodo.utils;
 const { exportFullConfiguration } = frodo.config;
 
+const exportDir = getWorkingDirectory(true) + '/frodo-export';
+
 const changed = [];
 const deleted = [];
 const added = [];
 const logmessages = [];
 
 export async function compareExportToDirectory(
-  exportDir: string,
-  masterDir: string = "../forgeops-export-1/Start",
   options: FullExportOptions = {
-    useStringArrays: false,
+    useStringArrays: true,
     noDecode: false,
     coords: true,
-    includeDefault: false,
+    includeDefault: true,
     includeActiveValues: false,
     target: '',
   },
+  dir1: string,
+  dir2: string
 ): Promise<boolean> {
   try {
     var options = options;
-    options.target = exportDir;
-    verboseMessage(`Master dir: ${masterDir}`);
-    verboseMessage(`Export dir: ${exportDir}`);
+    verboseMessage(`Master dir: ${dir1}`);
+    verboseMessage(`Export dir: ${dir2}`);
     // var direct = dir
     //export the full configuration
 
-    // try{
-    //   verboseMessage("exporting")
-    //   await emptyDirectory(dir2)
-    //   if(!await exportEverythingToFiles(true, false, false, options, dir2)){
-    //     verboseMessage("error in export")
-    //     throw new FrodoError("Errors occured while exporting files")
-    //   }
-    // } catch (e) {
-    //   verboseMessage(e)
-    // }
+    verboseMessage("exporting")
+    emptyDirectory(exportDir)
+    if(!await exportEverythingToFiles(options)){
+      throw new FrodoError("Errors occured while exporting files")
+    }
 
     // let fileName = 'all.config.json';
     // verboseMessage("importing export")
-    // const exportData = await getFullExportConfigFromDirectory(dir2);
+    // const exportData = await getFullExportConfigFromDirectory(exportDir);
     // saveJsonToFile(exportData, getFilePath(fileName, true));
 
     // //import everything from separate files in a directory
@@ -109,40 +103,98 @@ export async function compareExportToDirectory(
 
     verboseMessage('fileDiffing');
     const fileDiffname = 'fileDiff.config.json';
-    await compareDirectoriesAndChange(exportDir, masterDir);
+    await compareDirectoriesAndChange(exportDir, dir1);
     const compareObj: CompareObj = { added, changed, deleted };
     saveJsonToFile(compareObj, getFilePath('a1' + fileDiffname, true));
     saveJsonToFile(logmessages, getFilePath('a2' + fileDiffname, true));
 
-    // while (added.length > 0) {
-    //   added.pop()
-    // }
-    // while (changed.length > 0) {
-    //   changed.pop()
-    // }
-    // while (deleted.length > 0) {
-    //   deleted.pop()
-    // }
-    
-    // try {
-    //   await emptyDirectory(exportDir)
-    //   if(!await exportEverythingToFiles(true, false, false, options, exportDir)){
-    //     throw new FrodoError("Errors occured while exporting files")
-    //   }
-    // } catch(e) {
-    //   verboseMessage(e)
-    // }
-    
+    while (added.length > 0) {
+      added.pop()
+    }
+    while (changed.length > 0) {
+      changed.pop()
+    }
+    while (deleted.length > 0) {
+      deleted.pop()
+    }
+    emptyDirectory(exportDir)
+    if(!await exportEverythingToFiles(options)){
+      throw new FrodoError("Errors occured while exporting files")
+    }
 
-    // verboseMessage("fileDiffing")
-    // await compareDirectories(exportDir, masterDir)
-    // let compareObj2: CompareObj = {added, changed, deleted}
-    // saveJsonToFile(compareObj, getFilePath("b1" + fileDiffname, true))
+    verboseMessage("fileDiffing")
+    await compareDirectories(exportDir, dir1)
+    let compareObj2: CompareObj = {added, changed, deleted}
+    saveJsonToFile(compareObj, getFilePath("b1" + fileDiffname, true))
 
     return true;
   } catch (error) {
     printError(error);
     verboseMessage('Hello there we have an error!!!!!!!!!!!');
+  }
+  return false;
+}
+
+/**
+ * Export everything to separate files
+ * @param {boolean} extract Extracts the scripts from the exports into separate files if true
+ * @param {boolean} separateMappings separate sync.json mappings if true, otherwise keep them in a single file
+ * @param {boolean} includeMeta true to include metadata, false otherwise. Default: true
+ * @param {FullExportOptions} options export options
+ * @return {Promise<boolean>} a promise that resolves to true if successful, false otherwise
+ */
+export async function exportEverythingToFiles(
+  options: FullExportOptions = {
+    useStringArrays: true,
+    noDecode: false,
+    coords: true,
+    includeDefault: false,
+    includeActiveValues: false,
+    target: '',
+  },
+  extract: boolean = true,
+  separateMappings: boolean = false,
+  includeMeta: boolean = false
+): Promise<boolean> {
+  try {
+    const collectErrors: Error[] = [];
+    const exportData: FullExportInterface = await exportFullConfiguration(
+      options,
+      collectErrors
+    );
+    delete exportData.meta;
+    const baseDirectory = exportDir;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Object.entries(exportData.global).forEach(([type, obj]: [string, any]) =>
+      exportItem(
+        exportData.global,
+        type,
+        obj,
+        `${baseDirectory}/global`,
+        includeMeta,
+        extract,
+        separateMappings
+      )
+    );
+    Object.entries(exportData.realm).forEach(([realm, data]: [string, any]) =>
+      Object.entries(data).forEach(([type, obj]: [string, any]) =>
+        exportItem(
+          data,
+          type,
+          obj,
+          `${baseDirectory}/realm/${realm}`,
+          includeMeta,
+          extract,
+          separateMappings
+        )
+      )
+    );
+    if (collectErrors.length > 0) {
+      throw new FrodoError(`Errors occurred during full export`, collectErrors);
+    }
+    return true;
+  } catch (error) {
+    printError(error);
   }
   return false;
 }
@@ -155,28 +207,23 @@ function hashFile(filePath) {
   return hash.digest('hex');
 }
 
-const readdir = util.promisify(fs.readdir);
-const stat = util.promisify(fs.stat);
-const access = util.promisify(fs.access);
-
 // Function to compare two directories
 async function compareDirectoriesAndChange(dir1, dir2) {
-  // Walk through dir1 asynchronously
-  const walkDir = async (dir, callback): Promise<void> => {
-    const files = await readdir(dir);
-    await Promise.all(files.map(async (file) => {
+  // Walk through dir1
+  const walkDir = (dir, callback) => {
+    fs.readdirSync(dir).forEach((file) => {
       const filePath = path.join(dir, file);
-      const fileStat = await stat(filePath);
-      if (fileStat.isDirectory()) {
-        await walkDir(filePath, callback);
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        walkDir(filePath, callback);
       } else {
-        await callback(filePath);
+        callback(filePath);
       }
-    }));
+    });
   };
 
   // First directory traversal
-  await walkDir(dir1, async (file: string): Promise<void> => {
+  walkDir(dir1, async (file: string) => {
     const relativePath = path.relative(dir1, file);
     const counterpart = path.join(dir2, relativePath);
 
@@ -184,33 +231,24 @@ async function compareDirectoriesAndChange(dir1, dir2) {
       relativePath.startsWith('.git' + path.sep) ||
       relativePath.includes('README.md')
     ) {
-      return; // Skip .git directories and README.md
+      return; // Skip .git directories
     }
 
-    try {
-      await access(counterpart); // Check if file exists
-      const hash1 = await hashFile(file); // Assumes hashFile is async
-      const hash2 = await hashFile(counterpart);
+    if (fs.existsSync(counterpart)) {
+      const hash1 = hashFile(file);
+      const hash2 = hashFile(counterpart);
       if (hash1 !== hash2) {
-        if (!relativePath.includes("theme")) {
-          logmessages.push(`change ${relativePath}`);
-          changed.push(`'${relativePath}'`);
-          await changeFile(relativePath, dir2); // Assumes changeFile is async
-          verboseMessage("why do I never hit here");
-          logmessages.push(``);
-        }
+        changed.push(`'${relativePath}'`);
+        await changeFile(relativePath, dir2);
       }
-    } catch (err) {
-      logmessages.push(`delete ${relativePath}`);
+    } else {
       deleted.push(`'${relativePath}'`);
-      await deleteFile(relativePath, dir1); // Assumes deleteFile is async
-      verboseMessage("why do I never hit here");
-      logmessages.push(` `);
+      await deleteFile(relativePath, dir1);
     }
   });
 
   // Second directory traversal to find added files
-  await walkDir(dir2, async (file: string): Promise<void> => {
+  walkDir(dir2, async (file: string) => {
     const relativePath = path.relative(dir2, file);
     const counterpart = path.join(dir1, relativePath);
 
@@ -218,37 +256,33 @@ async function compareDirectoriesAndChange(dir1, dir2) {
       relativePath.startsWith('.git' + path.sep) ||
       relativePath.includes('README.md')
     ) {
-      return; // Skip .git directories and README.md
+      return; // Skip .git directories
     }
 
-    try {
-      await access(counterpart); // Check if counterpart exists in dir1
-    } catch (err) {
-      logmessages.push(`add ${relativePath}`);
+    if (!fs.existsSync(counterpart)) {
       added.push(`'${relativePath}'`);
-      await addFile(relativePath, dir2); // Assumes addFile is async
-      logmessages.push(` `);
+      await addFile(relativePath, dir2);
     }
   });
 }
 
 // Function to compare two directories
-async function compareDirectories(dir1, dir2) {
+function compareDirectories(dir1, dir2) {
   // Walk through dir1
-  const walkDir = async (dir, callback) => {
-    fs.readdirSync(dir).forEach(async (file) => {
+  const walkDir = (dir, callback) => {
+    fs.readdirSync(dir).forEach((file) => {
       const filePath = path.join(dir, file);
       const stat = fs.statSync(filePath);
       if (stat.isDirectory()) {
-        await walkDir(filePath, callback);
+        walkDir(filePath, callback);
       } else {
-        await callback(filePath);
+        callback(filePath);
       }
     });
   };
 
   // First directory traversal
-  walkDir(dir1, async (file: string) => {
+  walkDir(dir1, (file: string) => {
     const relativePath = path.relative(dir1, file);
     const counterpart = path.join(dir2, relativePath);
 
@@ -271,7 +305,7 @@ async function compareDirectories(dir1, dir2) {
   });
 
   // Second directory traversal to find added files
-  walkDir(dir2, async (file: string) => {
+  walkDir(dir2, (file: string) => {
     const relativePath = path.relative(dir2, file);
     const counterpart = path.join(dir1, relativePath);
 
@@ -302,6 +336,7 @@ async function emptyDirectory(dirPath: string): Promise<void> {
     }
   }
   const files = await promises.readdir(absoluteDirPath);
+  verboseMessage('cleaning: ');
 
   for (const file of files) {
     const filePath = path.join(absoluteDirPath, file);
@@ -319,17 +354,18 @@ async function emptyDirectory(dirPath: string): Promise<void> {
   }
 }
 
-async function changeFile(path: string, dir: string): Promise<void> {
+async function changeFile(path: string, dir: string) {
+  logmessages.push('file changed:');
+  verboseMessage('File Changed: ');
   await addFile(path, dir);
 }
 
-async function addFile(path: string, dir: string): Promise<void> {
+async function addFile(path: string, dir: string) {
   let type = getTypeFromPath(path);
   const importFilePath = dir + '/' + path;
   const global = path.substring(0, path.indexOf('/')) === 'global';
   const inRealm = path.substring(0, path.indexOf('/')) === 'realm';
   setRealmFromPath(path, inRealm)
-  logmessages.push(`realm = ${state.getRealm()}`)
 
   switch (type) {
     case 'application': {
@@ -360,17 +396,13 @@ async function addFile(path: string, dir: string): Promise<void> {
       const journey = getJsonObjectOneDown(importFilePath);
       const journeyId = Object.keys(journey)[0];
       verboseMessage(`journey Id: ${journeyId}`);
-      logmessages.push(`add journey ${importFilePath}`)
-      try{
-        const outcome = await importJourneyFromFile(journeyId, importFilePath, {
-          reUuid: false,
-          deps: true,
-        });
-        logmessages.push(`outcome: ${outcome}`);
-      } catch (e) {
-        logmessages.push("error")
-        logmessages.push(e)
-      }
+      const outcome = await importJourneyFromFile(journeyId, importFilePath, {
+        reUuid: false,
+        deps: true,
+      });
+      logmessages.push(`add journey ${importFilePath}`);
+      verboseMessage(`add journey ${importFilePath}\n`);
+      logmessages.push(`outcome: ${outcome}`);
       logmessages.push(' ');
       break;
     }
@@ -436,13 +468,13 @@ async function addFile(path: string, dir: string): Promise<void> {
       break;
     }
     case 'theme': {
-      // const theme = getJsonObjectTwoDown(importFilePath)
-      // logmessages.push(`Theme Id: ${theme._id}`)
-      // // const outcome = await importThemesFromFile(importFilePath)
-      // logmessages.push(`add theme ${importFilePath}`);
-      // verboseMessage(`add theme ${importFilePath}\n`);
-      // // logmessages.push(`outcome: ${outcome}`)
-      // logmessages.push(' ');
+      const theme = getJsonObjectTwoDown(importFilePath)
+      logmessages.push(`Theme Id: ${theme._id}`)
+      const outcome = await importThemesFromFile(importFilePath)
+      logmessages.push(`add theme ${importFilePath}`);
+      verboseMessage(`add theme ${importFilePath}\n`);
+      logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(' ');
       break;
     }
     case 'emailTemplate': {
@@ -603,7 +635,7 @@ async function addFile(path: string, dir: string): Promise<void> {
   }
 }
 
-async function deleteFile(path: string, dir: string): Promise<void> {
+async function deleteFile(path: string, dir: string) {
   let type = getTypeFromPath(path)
   const deleteFilePath = dir + '/' + path;
   const global = path.substring(0, path.indexOf('/')) === 'global';
@@ -637,9 +669,9 @@ async function deleteFile(path: string, dir: string): Promise<void> {
       verboseMessage(
         `Deleting journey ${journeyId} in realm "${state.getRealm()}"...`
       );
-      const outcome = await deleteJourney(journeyId, {deep: true, verbose: false, progress: false});
+      // const outcome = await deleteJourney(journeyId, {deep: true, verbose: false, progress: false});
       logmessages.push(`delete journey ${deleteFilePath}`);
-      logmessages.push(`outcome: ${outcome}`)
+      // logmessages.push(`outcome: ${outcome}`)
       logmessages.push(' ');
       verboseMessage(`delete journey ${deleteFilePath}\n`);
       break;
@@ -720,17 +752,17 @@ async function deleteFile(path: string, dir: string): Promise<void> {
       break;
     }
     case 'theme': {
-      // const theme = getJsonObjectTwoDown(deleteFilePath);
-      // verboseMessage(
-      //   `Deleting theme with id "${
-      //     theme._id
-      //   }" from realm "${state.getRealm()}"...`
-      // );
-      // //const outcome = await deleteTheme(theme._id);
-      // logmessages.push(`delete theme ${deleteFilePath}`);
-      // //logmessages.push(`outcome: ${outcome}`)
-      // logmessages.push(' ');
-      // verboseMessage(`delete theme ${deleteFilePath}\n`);
+      const theme = getJsonObjectTwoDown(deleteFilePath);
+      verboseMessage(
+        `Deleting theme with id "${
+          theme._id
+        }" from realm "${state.getRealm()}"...`
+      );
+      const outcome = await deleteTheme(theme._id);
+      logmessages.push(`delete theme ${deleteFilePath}`);
+      logmessages.push(`outcome: ${outcome}`)
+      logmessages.push(' ');
+      verboseMessage(`delete theme ${deleteFilePath}\n`);
       break;
     }
     case 'emailTemplate': {

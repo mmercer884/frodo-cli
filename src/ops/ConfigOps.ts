@@ -76,8 +76,7 @@ export async function exportEverythingToFiles(
     includeDefault: false,
     includeActiveValues: false,
     target: '',
-  },
-  bDirectory: string = null
+  }
 ): Promise<boolean> {
   try {
     const collectErrors: Error[] = [];
@@ -86,7 +85,7 @@ export async function exportEverythingToFiles(
       collectErrors
     );
     delete exportData.meta;
-    const baseDirectory = bDirectory ? bDirectory : getWorkingDirectory(true);
+    const baseDirectory = getWorkingDirectory(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Object.entries(exportData.global).forEach(([type, obj]: [string, any]) =>
       exportItem(

@@ -183,17 +183,51 @@ export async function compareExportToDirectory(
   return false;
 }
 
-export async function effectDifferences(compObj: CompareObj, masterDir: string, exportDir: string) {
+function enviornmentChanged(files: CompareObj): boolean {
+  // variables
+  let variable = files.changed.find((val) => val.includes('global/variable'));
+  if (variable) {
+    return true;
+  }
+  variable = files.added.find((val) => val.includes('global/variable'));
+  if (variable) {
+    return true;
+  }
+  variable = files.deleted.find((val) => val.includes('global/variable'));
+  if (variable) {
+    return true;
+  }
+  // secrets
+  // variable = files.changed.find((val) => val.includes('global/secret'));
+  // if (variable) {
+  //   return true;
+  // }
+  // variable = files.added.find((val) => val.includes('global/secret'));
+  // if (variable) {
+  //   return true;
+  // }
+  // variable = files.deleted.find((val) => val.includes('global/secret'));
+  // if (variable) {
+  //   return true;
+  // }
+}
+
+export async function effectDifferences(
+  compObj: CompareObj,
+  masterDir: string,
+  exportDir: string,
+  effectSecrets: boolean = false
+) {
   for (const add of compObj.added) {
-    await addFile(add, masterDir);
+    await addFile(add, masterDir, effectSecrets);
   }
   for (const change of compObj.changed) {
-    await changeFile(change, masterDir);
+    await changeFile(change, masterDir, effectSecrets);
   }
   for (const del of compObj.deleted) {
-    await deleteFile(del, exportDir);
+    await deleteFile(del, exportDir, effectSecrets);
   }
-  verboseMessage(`finished effect differences`)
+  verboseMessage(`finished effect differences`);
 }
 
 /**

@@ -48,6 +48,15 @@ export default function setup() {
       )
     )
     .addOption(
+      new Option('--prune', 'Will run Frodo Journey Prune on all realms')
+    )
+    .addOption(
+      new Option(
+        '--prune-no-prompt',
+        'Will run a Frodo Journey Prune but will not promt and will just delete the nodes. This will override --prune.'
+      )
+    )
+    .addOption(
       new Option(
         '--propmt-prune',
         'Will prompt for Frodo Journey Prune on all realms'
